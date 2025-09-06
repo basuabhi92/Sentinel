@@ -1,0 +1,42 @@
+name: DB Migrate
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'migrate/**'        # run only when migration files change
+  workflow_dispatch: {}             # allow manual run
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    env:
+      VM_IP: ${{ secrets.GCE_VM_IP }}
+      VM_USER: ${{ secrets.GCE_VM_USER }}            # 'deployer'
+      SSH_KEY: ${{ secrets.GCE_SSH_PRIVATE_KEY }}    # private key content of ~/.ssh/nano_ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ env.SSH_KEY }}
+
+      - name: Add VM to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H $VM_IP >> ~/.ssh/known_hosts
+
+      - name: Sync migrations to VM
+        run: |
+          rsync -avz --delete backend/migrate/ ${VM_USER}@${VM_IP}:/opt/nano/migrate/
+
+      - name: Run Flyway migrate on VM
+        run: |
+          ssh ${VM_USER}@${VM_IP} "sudo /usr/local/bin/flyway -configFiles=/etc/flyway.conf -X migrate"
+
+      - name: Show Flyway info (after)
+        if: always()
+        run: |
+          ssh ${VM_USER}@${VM_IP} "sudo /usr/local/bin/flyway -configFiles=/etc/flyway.conf info"

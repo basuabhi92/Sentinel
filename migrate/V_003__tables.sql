@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS integrations (
   webhook_status  TEXT,                   -- e.g., 'verified', 'pending', 'disabled'
   cursor_json     JSONB,                  -- polling cursors (since_id, etc.)
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  cursor_json     JSONB,
   PRIMARY KEY (user_id, app)
 );
 

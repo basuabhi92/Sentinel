@@ -74,30 +74,34 @@ CREATE TABLE IF NOT EXISTS devices (
 -- NOTIFICATIONS (partitioned by hash(user_id) for write scalability)
 -- Parent
 CREATE TABLE IF NOT EXISTS notifications (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id              UUID NOT NULL DEFAULT gen_random_uuid(),
   user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   app             app_enum NOT NULL,
-  ts              TIMESTAMPTZ NOT NULL,              -- provider timestamp
+  ts              TIMESTAMPTZ NOT NULL,
   title           TEXT NOT NULL,
   preview         TEXT,
   read            BOOLEAN NOT NULL DEFAULT FALSE,
   labels          TEXT[] NOT NULL DEFAULT '{}',
-  delivery        delivery_enum NOT NULL,            -- silent|push|digest|email|webhook|drop
+  delivery        delivery_enum NOT NULL,
   priority_score  NUMERIC(5,3),
-  provider        TEXT NOT NULL,                     -- e.g., 'gmail','slack'
-  provider_msg_id TEXT NOT NULL,                     -- idempotency key part
+  provider        TEXT NOT NULL,
+  provider_msg_id TEXT NOT NULL,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  purge_after     TIMESTAMPTZ,                       -- when eligible for deletion
+  purge_after     TIMESTAMPTZ,
+
+  PRIMARY KEY (user_id, id),
+
   UNIQUE (user_id, app, provider, provider_msg_id)
 ) PARTITION BY HASH (user_id);
 
--- Child partitions (8-way, tune as needed)
+-- 8 partitions
 DO $$
 BEGIN
   FOR i IN 0..7 LOOP
     EXECUTE format($$
       CREATE TABLE IF NOT EXISTS notifications_p%s
-      PARTITION OF notifications FOR VALUES WITH (MODULUS 8, REMAINDER %s);
+      PARTITION OF notifications
+      FOR VALUES WITH (MODULUS 8, REMAINDER %s);
     $$, i, i);
   END LOOP;
 END$$;

@@ -4,20 +4,24 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'migrate/**'        # run only when migration files change
-  workflow_dispatch: {}             # allow manual run
+      - 'migrate/**'         # only when migration scripts change
+      - '.github/workflows/db-migrate.yml'
+  workflow_dispatch: {}
 
 jobs:
   migrate:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install rsync
-        run: sudo apt-get update && sudo apt-get install -y rsync
+      - name: Install rsync on runner
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rsync
 
-      - name: Install SSH key
+      - name: Start SSH agent with CI key
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.GCE_SSH_PRIVATE_KEY }}
@@ -27,7 +31,11 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.GCE_VM_IP }} >> ~/.ssh/known_hosts
 
-      - name: Sync migrations to VM
+      - name: Ensure rsync is installed on VM
+        run: |
+          ssh ${{ secrets.GCE_VM_USER }}@${{ secrets.GCE_VM_IP }} "command -v rsync >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y rsync)"
+
+      - name: Sync migrations to VM (/opt/nano/migrate)
         run: |
           rsync -avz --delete migrate/ ${{ secrets.GCE_VM_USER }}@${{ secrets.GCE_VM_IP }}:/opt/nano/migrate/
 

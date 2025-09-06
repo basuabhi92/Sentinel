@@ -1,4 +1,4 @@
--- 01_types.sql
+-- 02_types.sql
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_enum') THEN

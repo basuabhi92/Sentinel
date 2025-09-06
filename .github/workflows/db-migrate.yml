@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'migrate/**'         # only when migration scripts change
+      - 'migrate/**'
       - '.github/workflows/db-migrate.yml'
   workflow_dispatch: {}
 
@@ -16,11 +16,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install rsync on runner
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y rsync
-
       - name: Start SSH agent with CI key
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -31,19 +26,43 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.GCE_VM_IP }} >> ~/.ssh/known_hosts
 
-      - name: Ensure rsync is installed on VM
+      - name: Prepare target dir (no sudo needed if /opt/nano owned by deployer)
         run: |
-          ssh ${{ secrets.GCE_VM_USER }}@${{ secrets.GCE_VM_IP }} "command -v rsync >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y rsync)"
+          ssh ${{ secrets.GCE_VM_USER }}@${{ secrets.GCE_VM_IP }} "mkdir -p /opt/nano/migrate && rm -rf /opt/nano/migrate/*"
 
-      - name: Sync migrations to VM (/opt/nano/migrate)
+      - name: Copy migrations via scp
         run: |
-          rsync -avz --delete migrate/ ${{ secrets.GCE_VM_USER }}@${{ secrets.GCE_VM_IP }}:/opt/nano/migrate/
+          scp -r migrate/* ${{ secrets.GCE_VM_USER }}@${{ secrets.GCE_VM_IP }}:/opt/nano/migrate/
 
-      - name: Run Flyway migrate on VM
+      - name: Run Flyway migrate (no sudo, pass config via flags)
         run: |
-          ssh ${{ secrets.GCE_VM_USER }}@${{ secrets.GCE_VM_IP }} "sudo /usr/local/bin/flyway -configFiles=/etc/flyway.conf -X migrate"
+          ssh ${{ secrets.GCE_VM_USER }}@${{ secrets.GCE_VM_IP }} "\
+            /usr/local/bin/flyway \
+              -url='${{ secrets.DB_URL }}' \
+              -user='${{ secrets.DB_USER }}' \
+              -password='${{ secrets.DB_PASS }}' \
+              -locations='filesystem:/opt/nano/migrate' \
+              -sqlMigrationPrefix='V_' \
+              -repeatableSqlMigrationPrefix='R__' \
+              -sqlMigrationSeparator='__' \
+              -sqlMigrationSuffixes='.sql' \
+              -baselineOnMigrate=true \
+              -outOfOrder=false \
+              -X migrate \
+          "
 
-      - name: Show Flyway info (after)
+      - name: Flyway info (after)
         if: always()
         run: |
-          ssh ${{ secrets.GCE_VM_USER }}@${{ secrets.GCE_VM_IP }} "sudo /usr/local/bin/flyway -configFiles=/etc/flyway.conf info"
+          ssh ${{ secrets.GCE_VM_USER }}@${{ secrets.GCE_VM_IP }} "\
+            /usr/local/bin/flyway \
+              -url='${{ secrets.DB_URL }}' \
+              -user='${{ secrets.DB_USER }}' \
+              -password='${{ secrets.DB_PASS }}' \
+              -locations='filesystem:/opt/nano/migrate' \
+              -sqlMigrationPrefix='V_' \
+              -repeatableSqlMigrationPrefix='R__' \
+              -sqlMigrationSeparator='__' \
+              -sqlMigrationSuffixes='.sql' \
+              info \
+          "

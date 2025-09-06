@@ -1,4 +1,4 @@
--- 05_functions.sql
+-- 06_functions.sql
 
 -- Mark all read (optionally before a timestamp) and schedule purge
 -- Returns number of rows affected.

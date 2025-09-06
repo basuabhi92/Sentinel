@@ -1,4 +1,4 @@
--- 06_views.sql
+-- 07_views.sql
 
 -- Unread-first list for a user+app (ready for the UI)
 CREATE OR REPLACE VIEW v_app_notifications AS

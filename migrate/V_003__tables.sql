@@ -1,4 +1,4 @@
--- 02_tables.sql
+-- 03_tables.sql
 SET timezone = 'UTC';
 
 -- USERS

@@ -1,4 +1,4 @@
--- 03_indexes.sql
+-- 04_indexes.sql
 
 -- RULES: fast fetch by user, priority
 CREATE INDEX IF NOT EXISTS rules_user_pri_idx

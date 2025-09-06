@@ -1,4 +1,4 @@
--- 04_triggers.sql
+-- 05_triggers.sql
 
 -- Keep updated_at fresh
 CREATE OR REPLACE FUNCTION set_updated_at()

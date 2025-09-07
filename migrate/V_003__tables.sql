@@ -88,23 +88,19 @@ CREATE TABLE IF NOT EXISTS notifications (
   provider_msg_id TEXT NOT NULL,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   purge_after     TIMESTAMPTZ,
-
   PRIMARY KEY (user_id, id),
-
   UNIQUE (user_id, app, provider, provider_msg_id)
 ) PARTITION BY HASH (user_id);
 
 -- 8 partitions
-DO $$
-BEGIN
-  FOR i IN 0..7 LOOP
-    EXECUTE format($$
-      CREATE TABLE IF NOT EXISTS notifications_p%s
-      PARTITION OF notifications
-      FOR VALUES WITH (MODULUS 8, REMAINDER %s);
-    $$, i, i);
-  END LOOP;
-END$$;
+CREATE TABLE IF NOT EXISTS notifications_p0 PARTITION OF notifications FOR VALUES WITH (MODULUS 8, REMAINDER 0);
+CREATE TABLE IF NOT EXISTS notifications_p1 PARTITION OF notifications FOR VALUES WITH (MODULUS 8, REMAINDER 1);
+CREATE TABLE IF NOT EXISTS notifications_p2 PARTITION OF notifications FOR VALUES WITH (MODULUS 8, REMAINDER 2);
+CREATE TABLE IF NOT EXISTS notifications_p3 PARTITION OF notifications FOR VALUES WITH (MODULUS 8, REMAINDER 3);
+CREATE TABLE IF NOT EXISTS notifications_p4 PARTITION OF notifications FOR VALUES WITH (MODULUS 8, REMAINDER 4);
+CREATE TABLE IF NOT EXISTS notifications_p5 PARTITION OF notifications FOR VALUES WITH (MODULUS 8, REMAINDER 5);
+CREATE TABLE IF NOT EXISTS notifications_p6 PARTITION OF notifications FOR VALUES WITH (MODULUS 8, REMAINDER 6);
+CREATE TABLE IF NOT EXISTS notifications_p7 PARTITION OF notifications FOR VALUES WITH (MODULUS 8, REMAINDER 7);
 
 -- DIGESTS (optional, for batched summaries)
 CREATE TABLE IF NOT EXISTS digests (

@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+    db:
+        image: postgres:16
+        container_name: local-postgres
+        restart: unless-stopped
+        ports:
+            - "5432:5432"
+        environment:
+            POSTGRES_USER: nanouser
+            POSTGRES_PASSWORD: CHANGEME
+            POSTGRES_DB: nanodb
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+
+    flyway:
+        image: flyway/flyway:10
+        container_name: flyway-migrate
+        depends_on:
+            - db
+        volumes:
+            - ./migrate:/flyway/sql
+            - ./flyway.conf:/flyway/conf/flyway.conf:ro
+        command: migrate
+
+volumes:
+    postgres_data:

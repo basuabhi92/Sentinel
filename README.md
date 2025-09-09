@@ -9,8 +9,8 @@ Event-first backend built on [Nano](https://github.com/NanoNative) with PostgreS
 ### Services (extend `org.nanonative.nano.core.model.Service`)
 - **PostgreSqlService** — the **only** service touching Postgres (via jOOQ). Attends to internal events.
 - **UserService** — `/auth/register`, `/auth/login`
-- **AppService** — `/api/apps/supported`, `/api/apps/{app}/link`, `/api/apps/{app}/unlink`.
-- **NotificationsService** — provider ingestion & user actions:
+- Todo: **AppService** — `/api/apps/supported`, `/api/apps/{app}/link`, `/api/apps/{app}/unlink`.
+- Todo: **NotificationsService** — provider ingestion & user actions:
     - `/webhook/ingest` → emits `notification.ingested`, persists notification.
     - `/api/apps/{app}/notifications/mark-read` → marks and purges.
 
@@ -25,7 +25,7 @@ Event-first backend built on [Nano](https://github.com/NanoNative) with PostgreS
 ## Build & Run
 
 ### Generate jOOQ classes and build project in one shot
-* Setup Postgres DB on local. Run command `docker-compose up flyway` to bring up Postgres instance and run flyway migrations.
+* Setup Postgres DB on local. Run command `docker-compose up flyway` to bring up Postgres instance on docker and run flyway migrations.
 * Execute command: sh jooq-generator-local.sh -> this script will set all required env variables and run `mvn -Pjooq clean generate-sources install`.
 
 The above two steps should make the app ready to start (if all dependencies have been resolved).
@@ -37,4 +37,4 @@ Provide “Mark all read & purge” to avoid data hoarding.
 
 ## Deployment
 DB migrations via Flyway in CI (already set up).
-Backend on GCE
+Backend to be setup on GCE

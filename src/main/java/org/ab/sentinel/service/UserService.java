@@ -156,7 +156,7 @@ public class UserService extends Service {
 
     private void problem(final HttpObject req, final Event event, final int status, final String message) {
         HttpObject resp = new HttpObject()
-            .statusCode(200)
+            .statusCode(status)
             .contentType(ContentType.APPLICATION_JSON)
             .bodyT(new TypeMap()
                 .putR("message", message)

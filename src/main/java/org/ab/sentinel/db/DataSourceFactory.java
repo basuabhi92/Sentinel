@@ -9,7 +9,6 @@ public final class DataSourceFactory {
     public static DataSource create() {
         var cfg = new HikariConfig();
 
-        // If DB_URL is provided, it wins (useful for one-liners / Heroku-like URLs)
         var defaultUrl = String.format(
             "jdbc:postgresql://%s:%d/%s?sslmode=%s",
             env("DB_HOST", "127.0.0.1"),

@@ -57,7 +57,6 @@ public final class PostgreSqlService extends Service {
             final String email = payload.email();
             final String rawPw = payload.password();
 
-            // Fetch only what we need
             final org.jooq.Record rec = dsl.select(USERS.ID, USERS.PASSWORD_HASH)
                 .from(USERS)
                 .where(USERS.EMAIL.eq(email))
@@ -87,7 +86,6 @@ public final class PostgreSqlService extends Service {
             final String name  = payload.name();
             final String rawPw = payload.password();
 
-            // exists?
             final boolean exists = dsl.fetchExists(
                 dsl.selectOne().from(USERS).where(USERS.EMAIL.eq(email))
             );

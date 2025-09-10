@@ -18,7 +18,7 @@ public class JwtHelper {
     }
 
     // Create a JWT with HS256. `claims` should at least include "sub"
-    public String createToken(Map<String, Object> claims, long ttlSeconds) {
+    public static String createToken(Map<String, Object> claims, long ttlSeconds) {
         long now = Instant.now().getEpochSecond();
         long exp = now + ttlSeconds;
 
@@ -34,7 +34,7 @@ public class JwtHelper {
     }
 
     // Basic verification: signature + exp
-    public boolean verify(String token) {
+    public static boolean verify(String token) {
         String[] parts = token.split("\\.");
         if (parts.length != 3) return false;
 
@@ -49,19 +49,19 @@ public class JwtHelper {
 
     // ---- helpers (tiny/no-reflection json ops) ----
 
-    private byte[] hmacSha256(byte[] data) {
+    private static byte[] hmacSha256(byte[] data) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(secret, "HmacSHA256"));
+            mac.init(new SecretKeySpec("SENTINEL-SECRET".getBytes(), "HmacSHA256"));
             return mac.doFinal(data);
         } catch (Exception e) { throw new RuntimeException(e); }
     }
 
-    private String b64Url(byte[] bytes) {
+    private static String b64Url(byte[] bytes) {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    private boolean constantTimeEq(String a, String b) {
+    private static boolean constantTimeEq(String a, String b) {
         if (a.length() != b.length()) return false;
         int r = 0;
         for (int i = 0; i < a.length(); i++) r |= a.charAt(i) ^ b.charAt(i);

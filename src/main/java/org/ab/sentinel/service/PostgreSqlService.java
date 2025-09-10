@@ -42,7 +42,6 @@ public final class PostgreSqlService extends Service {
 
     @Override
     public Object onFailure(final Event event) {
-        context.error(() -> "Event failure: " + event);
         return null;
     }
 

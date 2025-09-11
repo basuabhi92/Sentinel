@@ -13,6 +13,6 @@ echo "[INFO] Running jOOQ codegen locally..."
 DB_URL="jdbc:postgresql://localhost:${LOCAL_PORT}/${DB_NAME}" \
 DB_USER="${DB_USER}" \
 DB_PASS="${DB_PASS}" \
-mvn -Pjooq clean generate-sources install
+mvn -Pjooq clean generate-sources verify
 
 echo "[INFO] jOOQ codegen finished successfully."

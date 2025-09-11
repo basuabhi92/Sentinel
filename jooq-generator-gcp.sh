@@ -30,7 +30,7 @@ echo "[INFO] Running jOOQ codegen via tunnel..."
 DB_URL="jdbc:postgresql://localhost:${LOCAL_PORT}/${DB_NAME}" \
 DB_USER="${DB_USER}" \
 DB_PASS="${DB_PASS}" \
-mvn -Pjooq clean generate-sources install
+mvn -Pjooq clean generate-sources verify
 
 # === CLOSE TUNNEL ===
 echo "[INFO] Closing SSH tunnel..."

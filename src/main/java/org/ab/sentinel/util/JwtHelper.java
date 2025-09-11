@@ -11,12 +11,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class JwtHelper {
-    private final byte[] secret; // e.g. from env: System.getenv("JWT_SECRET")
-
-    public JwtHelper(String secret) {
-        this.secret = secret.getBytes(StandardCharsets.UTF_8);
-    }
-
     // Create a JWT with HS256. `claims` should at least include "sub"
     public static String createToken(Map<String, Object> claims, long ttlSeconds) {
         long now = Instant.now().getEpochSecond();

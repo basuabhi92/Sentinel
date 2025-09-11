@@ -3,17 +3,14 @@ package org.ab.sentinel.service;
 import berlin.yuna.typemap.model.TypeMapI;
 import org.ab.sentinel.AppEvents;
 import static org.ab.sentinel.jooq.tables.Users.USERS;
+import static org.nanonative.nano.helper.config.ConfigRegister.registerConfig;
 
 import org.ab.sentinel.db.DataSourceFactory;
 import org.ab.sentinel.db.JooqFactory;
+import org.ab.sentinel.dto.UserDto;
 import org.ab.sentinel.jooq.tables.records.UsersRecord;
-import org.ab.sentinel.model.LoginRequest;
-import org.ab.sentinel.model.LoginResult;
-import org.ab.sentinel.model.RegisterRequest;
-import org.ab.sentinel.model.RegisterResult;
-import org.ab.sentinel.util.Passwords;
-import org.ab.sentinel.util.Pbkdf2Passwords;
 import org.jooq.DSLContext;
+import org.jooq.impl.DSL;
 import org.nanonative.nano.core.model.Service;
 import org.nanonative.nano.helper.event.model.Event;
 
@@ -21,16 +18,23 @@ import javax.sql.DataSource;
 
 
 public final class PostgreSqlService extends Service {
+
+    public static final String CONFIG_DB_URL = registerConfig("db_url", "Database url");
+    public static final String CONFIG_DB_USER = registerConfig("db_user", "Database user");
+    public static final String CONFIG_DB_PASS = registerConfig("db_pass", "Database password");
+    private final String localDbUrl = "jdbc:postgresql://127.0.0.1:5432/nanodb?sslmode=disable";
+    private final String localDbUser = "nanouser";
+    private final String localDbPass = "CHANGEME";
+    private String dbUrl;
+    private String dbUser;
+    private String dbPass;
     private DSLContext dsl;
-    private final Passwords passwords = new Pbkdf2Passwords(200_000, 16, 32);
 
     @Override public String name() { return "PostgreSqlService"; }
 
     @Override
     public void start() {
-        context.info(() -> "[" + name() + "] started ");
-        DataSource ds = DataSourceFactory.create();
-        context.info(() -> "[" + name() + "] started ");
+        DataSource ds = DataSourceFactory.create(dbUrl, dbUser, dbPass);
         this.dsl = JooqFactory.create(ds);
         context.info(() -> "[" + name() + "] started ");
     }
@@ -47,70 +51,41 @@ public final class PostgreSqlService extends Service {
 
     @Override
     public void onEvent(final Event event) {
-        event.ifPresentAck(AppEvents.USER_REGISTER, RegisterRequest.class, this::registerUser);
-        event.ifPresentAck(AppEvents.USER_LOGIN, LoginRequest.class, this::loginUser);
+        event.ifPresentAck(AppEvents.USER_REGISTER, UserDto.class, this::saveUser);
+        event.ifPresentAck(AppEvents.USER_LOGIN, String.class, this::fetchUser);
     }
 
-    private LoginResult loginUser(final LoginRequest payload) {
-        try {
-            final String email = payload.email();
-            final String rawPw = payload.password();
+    private UsersRecord fetchUser(final String email) {
+        final UsersRecord user = dsl
+            .selectFrom(USERS)
+            .where(USERS.EMAIL.eq(email))
+            .fetchOne();
+        return user;
+    }
 
-            final org.jooq.Record rec = dsl.select(USERS.ID, USERS.PASSWORD_HASH)
+    private UsersRecord saveUser(final UserDto user) {
+
+        final UsersRecord userRecord = dsl.transactionResult(configuration -> {
+            DSLContext ctx = DSL.using(configuration);
+            if (ctx.fetchExists(ctx.selectOne()
                 .from(USERS)
-                .where(USERS.EMAIL.eq(email))
-                .fetchOne();
-
-            if (rec == null) {
-                return new LoginResult(false, null, "Invalid email or password");
+                .where(USERS.EMAIL.eq(user.email())))) {
+                return null;
             }
-
-            final String storedHash = rec.get(USERS.PASSWORD_HASH);
-            final boolean ok = passwords.verify(rawPw, storedHash);
-            if (!ok) {
-                return new LoginResult(false, null, "Invalid email or password");
-            }
-
-            final String userId = String.valueOf(rec.get(USERS.ID));
-            return new LoginResult(true, userId, null);
-
-        } catch (Exception e) {
-            return new LoginResult(false, null, "DB error: " + e.getMessage());
-        }
-    }
-
-    private RegisterResult registerUser(RegisterRequest payload) {
-        try {
-            final String email = payload.email();
-            final String name  = payload.name();
-            final String rawPw = payload.password();
-
-            final boolean exists = dsl.fetchExists(
-                dsl.selectOne().from(USERS).where(USERS.EMAIL.eq(email))
-            );
-            if (exists) {
-                return new RegisterResult(false, null, "Email already registered");
-            }
-
-            // hash & insert
-            final String hash = passwords.hash(rawPw);
-            final UsersRecord inserted = dsl.insertInto(USERS,
-                    USERS.EMAIL, USERS.NAME, USERS.PASSWORD_HASH)
-                .values(email, name, hash)
+            return ctx.insertInto(USERS)
+                .set(USERS.EMAIL, user.email())
+                .set(USERS.NAME, user.name())
+                .set(USERS.PASSWORD_HASH, user.passwordHash())
                 .returning(USERS.ID)
                 .fetchOne();
-
-            final String userId = inserted.get(USERS.ID).toString();
-
-            return new RegisterResult(true, userId, null);
-
-        } catch (Exception e) {
-            return new RegisterResult(false, null, "DB error: " + e);
-        }
+        });
+        return userRecord;
     }
 
     @Override
-    public void configure(final TypeMapI<?> typeMapI, final TypeMapI<?> typeMapI1) {
-
+    public void configure(final TypeMapI<?> configs, final TypeMapI<?> merged) {
+        this.dbUrl  = merged.asStringOpt(CONFIG_DB_URL).orElseGet(() -> localDbUrl);
+        this.dbUser  = merged.asStringOpt(CONFIG_DB_USER).orElseGet(() -> localDbUser);
+        this.dbPass  = merged.asStringOpt(CONFIG_DB_PASS).orElseGet(() -> localDbPass);
     }
 }

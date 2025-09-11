@@ -22,10 +22,9 @@ public class UserController {
         HttpObject request = event.payload(HttpObject.class);
         if (request.isMethodOptions()
             && (request.pathMatch("/auth/register") || request.pathMatch("/auth/login"))) {
-            HttpObject resp = new HttpObject()
+            HttpObject resp = request
                 .statusCode(200)
-                .header("Access-Control-Allow-Headers", "Content-Type,Authorization")
-                .corsResponse("*",  CORS_METHODS, "Content-Type,Authorization", 86400);
+                .corsResponse(event.payload(HttpObject.class).headerMap().asString("Origin"),  CORS_METHODS);
             event.response(resp);
         }
     }
@@ -54,7 +53,7 @@ public class UserController {
                             TOKEN_TTL
                         );
 
-                        jsonOk(event, new TypeMap().putR("token", token));
+                        jsonOk(event, Map.of("token", token));
                     } else {
                         problem(event, 422,
                             result.reason() == null ? "Login invalid" : result.reason());
@@ -89,8 +88,7 @@ public class UserController {
                                 "email", email),
                             TOKEN_TTL
                         );
-
-                        jsonOk(event, new TypeMap().putR("token", token));
+                        jsonOk(event, Map.of("token", token));
                     } else {
                         problem(event, 422,
                             result.reason() == null ? "Registration invalid" : result.reason());
@@ -99,28 +97,23 @@ public class UserController {
         }
     }
 
-    private static void jsonOk(final Event event, final TypeMap body) {
-        HttpObject resp = new HttpObject()
+    private static void jsonOk(final Event event, final Map<String, Object> body) {
+        HttpObject request = event.payload(HttpObject.class);
+        HttpObject resp = request
+            .corsResponse(request.headerMap().asString("Origin"),  CORS_METHODS, null, 86400, true)
             .statusCode(200)
             .contentType(ContentType.APPLICATION_JSON)
-            .bodyT(body)
-            .corsResponse(safeHeader(event.payload(HttpObject.class), "Origin"),  CORS_METHODS, "Content-Type, Authorization", 86400, true);
+            .body(body);
         event.response(resp);
     }
 
     private static void problem(final Event event, final int status, final String message) {
-        HttpObject resp = new HttpObject()
+        HttpObject request = event.payload(HttpObject.class);
+        HttpObject resp = request
+            .corsResponse(request.headerMap().asString("Origin"),  CORS_METHODS)
             .statusCode(status)
-            .contentType(ContentType.APPLICATION_JSON)
-            .bodyT(new TypeMap()
-                .putR("message", message)
-                .putR("timestamp", System.currentTimeMillis()))
-             .header("Access-Control-Allow-Origin", "allow")
-            .corsResponse("*",  CORS_METHODS, "Content-Type, Authorization", 86400);
+            .contentType(ContentType.APPLICATION_PROBLEM_JSON)
+            .body(Map.of("message", message, "timestamp", System.currentTimeMillis()));
         event.response(resp);
-    }
-
-    private static String safeHeader(final HttpObject req, final String name) {
-        try { return req.header(name); } catch (Exception ignore) { return null; }
     }
 }

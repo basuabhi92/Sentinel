@@ -1,8 +1,9 @@
 package org.ab.sentinel;
 
+import org.ab.sentinel.controller.AppController;
 import org.ab.sentinel.service.PostgreSqlService;
-import org.ab.sentinel.service.RulesService;
 import org.ab.sentinel.controller.UserController;
+import org.ab.sentinel.service.integrations.GithubIntegrationService;
 import org.nanonative.nano.core.Nano;
 import org.nanonative.nano.services.http.HttpServer;
 
@@ -20,12 +21,17 @@ public class App {
             CONFIG_LOG_LEVEL, DEBUG,
             CONFIG_LOG_FORMATTER, "console",
             CONFIG_SERVICE_HTTP_PORT, "8080"
-        ), new HttpServer(), new PostgreSqlService(), new RulesService());
+        ), new HttpServer(), new PostgreSqlService(), new GithubIntegrationService());
 
 
         nano.context(UserController.class)
             .subscribeEvent(EVENT_HTTP_REQUEST, UserController::preflight)
             .subscribeEvent(EVENT_HTTP_REQUEST, UserController::registerUser)
             .subscribeEvent(EVENT_HTTP_REQUEST, UserController::loginUser);
+
+        nano.context(AppController.class)
+            .subscribeEvent(EVENT_HTTP_REQUEST, AppController::preflight)
+            .subscribeEvent(EVENT_HTTP_REQUEST, AppController::getApps)
+            .subscribeEvent(EVENT_HTTP_REQUEST, AppController::integrationRequest);
     }
 }

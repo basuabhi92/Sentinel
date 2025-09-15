@@ -2,12 +2,15 @@ package org.ab.sentinel.service;
 
 import berlin.yuna.typemap.model.TypeMapI;
 import org.ab.sentinel.AppEvents;
+
+import static org.ab.sentinel.jooq.Tables.APPS;
 import static org.ab.sentinel.jooq.tables.Users.USERS;
 import static org.nanonative.nano.helper.config.ConfigRegister.registerConfig;
 
 import org.ab.sentinel.db.DataSourceFactory;
 import org.ab.sentinel.db.JooqFactory;
 import org.ab.sentinel.dto.UserDto;
+import org.ab.sentinel.jooq.tables.records.AppsRecord;
 import org.ab.sentinel.jooq.tables.records.UsersRecord;
 import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
@@ -15,6 +18,10 @@ import org.nanonative.nano.core.model.Service;
 import org.nanonative.nano.helper.event.model.Event;
 
 import javax.sql.DataSource;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 
 public final class PostgreSqlService extends Service {
@@ -30,13 +37,11 @@ public final class PostgreSqlService extends Service {
     private String dbPass;
     private DSLContext dsl;
 
-    @Override public String name() { return "PostgreSqlService"; }
-
     @Override
     public void start() {
         DataSource ds = DataSourceFactory.create(dbUrl, dbUser, dbPass);
         this.dsl = JooqFactory.create(ds);
-        context.info(() -> "[" + name() + "] started ");
+        context.info(() -> "[{}] started", name());
     }
 
     @Override
@@ -53,6 +58,16 @@ public final class PostgreSqlService extends Service {
     public void onEvent(final Event event) {
         event.ifPresentAck(AppEvents.USER_REGISTER, UserDto.class, this::saveUser);
         event.ifPresentAck(AppEvents.USER_LOGIN, String.class, this::fetchUser);
+        event.ifPresentAck (AppEvents.APP_LIST, this::getApps);
+    }
+
+    private Map<String, Object> getApps(Event event) {
+        final List<AppsRecord> apps = dsl
+            .selectFrom(APPS).fetchInto(AppsRecord.class);
+
+        return apps.stream().collect(Collectors.toMap(
+            AppsRecord::getName, Function.identity()
+        ));
     }
 
     private UsersRecord fetchUser(final String email) {

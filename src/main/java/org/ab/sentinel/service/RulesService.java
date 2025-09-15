@@ -26,11 +26,9 @@ public final class RulesService extends Service {
 
     }
 
-    @Override public String name() { return "RulesService"; }
-
     @Override
     public void start() {
-        context.info(() -> "[" + name() + "] started ");
+        context.info(() -> "[{}] started", name());
         // In the next iteration:
         // - subscribe to NOTIF_INGESTED to compute delivery (silent/push/digest)
         // - expose /api/rules CRUD (persist via Events.DB_REQUEST)

@@ -8,24 +8,24 @@ import org.ab.sentinel.util.JwtHelper;
 import org.ab.sentinel.util.Passwords;
 import org.ab.sentinel.util.Pbkdf2Passwords;
 import org.nanonative.nano.helper.event.model.Event;
-import org.nanonative.nano.services.http.model.ContentType;
 import org.nanonative.nano.services.http.model.HttpObject;
 
 import java.util.Map;
 
 import static org.ab.sentinel.jooq.tables.Users.USERS;
+import static org.ab.sentinel.util.ResponseHelper.jsonOk;
+import static org.ab.sentinel.util.ResponseHelper.options;
+import static org.ab.sentinel.util.ResponseHelper.problem;
 
 public class UserController {
 
     private static final long TOKEN_TTL = 3600;
-    private static final String CORS_METHODS = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
     private static final Passwords passwords = new Pbkdf2Passwords(200_000, 16, 32);
 
     public static void preflight(Event event) {
         HttpObject request = event.payload(HttpObject.class);
         if (request.isMethodOptions() && (request.pathMatch("/auth/register") || request.pathMatch("/auth/login"))) {
-            HttpObject resp = request.statusCode(200).corsResponse(event.payload(HttpObject.class).headerMap().asString("Origin"), CORS_METHODS);
-            event.response(resp);
+            options(event);
         }
     }
 
@@ -76,17 +76,5 @@ public class UserController {
 
             }, () -> problem(event, 422, "Email already registered"));
         }
-    }
-
-    private static void jsonOk(final Event event, final Map<String, Object> body) {
-        HttpObject request = event.payload(HttpObject.class);
-        HttpObject resp = request.corsResponse(request.headerMap().asString("Origin"), CORS_METHODS, null, 86400, true).statusCode(200).contentType(ContentType.APPLICATION_JSON).body(body);
-        event.response(resp);
-    }
-
-    private static void problem(final Event event, final int status, final String message) {
-        HttpObject request = event.payload(HttpObject.class);
-        HttpObject resp = request.corsResponse(request.headerMap().asString("Origin"), CORS_METHODS).statusCode(status).contentType(ContentType.APPLICATION_PROBLEM_JSON).body(Map.of("message", message, "timestamp", System.currentTimeMillis()));
-        event.response(resp);
     }
 }

@@ -1,10 +1,15 @@
 package org.ab.sentinel.util;
 
+import berlin.yuna.typemap.model.LinkedTypeMap;
 import org.nanonative.nano.helper.event.model.Event;
 import org.nanonative.nano.services.http.model.ContentType;
 import org.nanonative.nano.services.http.model.HttpObject;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+
+import static org.nanonative.nano.helper.NanoUtils.hasText;
 
 public class ResponseHelper {
 
@@ -25,5 +30,12 @@ public class ResponseHelper {
     public static void options(final Event event) {
         HttpObject resp = event.payload(HttpObject.class).statusCode(200).corsResponse(event.payload(HttpObject.class).headerMap().asString("Origin"), CORS_METHODS);
         event.response(resp);
+    }
+
+    public static String missingFields(final LinkedTypeMap body, final String... keys) {
+        final List<String> missing = Arrays.stream(keys)
+            .filter(k -> !hasText(body.asString(k)))
+            .toList();
+        return missing.isEmpty() ? null : String.join(", ", missing);
     }
 }

@@ -4,13 +4,16 @@ import berlin.yuna.typemap.model.TypeMapI;
 import org.ab.sentinel.AppEvents;
 
 import static org.ab.sentinel.jooq.Tables.APPS;
+import static org.ab.sentinel.jooq.Tables.INTEGRATIONS;
 import static org.ab.sentinel.jooq.tables.Users.USERS;
 import static org.nanonative.nano.helper.config.ConfigRegister.registerConfig;
 
 import org.ab.sentinel.db.DataSourceFactory;
 import org.ab.sentinel.db.JooqFactory;
 import org.ab.sentinel.dto.UserDto;
+import org.ab.sentinel.dto.integrations.AppIntegrationRequestDto;
 import org.ab.sentinel.jooq.tables.records.AppsRecord;
+import org.ab.sentinel.jooq.tables.records.IntegrationsRecord;
 import org.ab.sentinel.jooq.tables.records.UsersRecord;
 import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
@@ -18,6 +21,8 @@ import org.nanonative.nano.core.model.Service;
 import org.nanonative.nano.helper.event.model.Event;
 
 import javax.sql.DataSource;
+import java.nio.charset.StandardCharsets;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -58,7 +63,8 @@ public final class PostgreSqlService extends Service {
     public void onEvent(final Event event) {
         event.ifPresentAck(AppEvents.USER_REGISTER, UserDto.class, this::saveUser);
         event.ifPresentAck(AppEvents.USER_LOGIN, String.class, this::fetchUser);
-        event.ifPresentAck (AppEvents.APP_LIST, this::getApps);
+        event.ifPresentAck(AppEvents.APP_LIST, this::getApps);
+        event.ifPresentAck(AppEvents.APP_INT_REQ, AppIntegrationRequestDto.class, this::saveNewUserIntegration);
     }
 
     private Map<String, Object> getApps(Event event) {
@@ -68,6 +74,18 @@ public final class PostgreSqlService extends Service {
         return apps.stream().collect(Collectors.toMap(
             AppsRecord::getName, Function.identity()
         ));
+    }
+
+    private IntegrationsRecord saveNewUserIntegration(AppIntegrationRequestDto req) {
+        final IntegrationsRecord res =  dsl.insertInto(INTEGRATIONS)
+            .set(INTEGRATIONS.APP_ID, req.appId())
+            .set(INTEGRATIONS.USER_ID, req.userId())
+            .set(INTEGRATIONS.SCOPES, req.scopes().split(","))
+            .set(INTEGRATIONS.ACCESS_TOKEN_ENC, req.accessToken().getBytes(StandardCharsets.UTF_8))
+            .set(INTEGRATIONS.EXPIRES_AT, req.expiresAt().atOffset(ZoneOffset.UTC))
+            .returning(INTEGRATIONS.USER_ID, INTEGRATIONS.APP_ID)
+            .fetchOne();
+        return res;
     }
 
     private UsersRecord fetchUser(final String email) {

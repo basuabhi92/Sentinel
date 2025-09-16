@@ -2,7 +2,8 @@ package org.ab.sentinel.controller;
 
 import berlin.yuna.typemap.model.LinkedTypeMap;
 import org.ab.sentinel.AppEvents;
-import org.ab.sentinel.dto.GithubDto;
+import org.ab.sentinel.dto.github.GithubDto;
+import org.ab.sentinel.dto.github.GithubTokenValidationResultDto;
 import org.ab.sentinel.util.JwtHelper;
 import org.nanonative.nano.helper.event.model.Event;
 import org.nanonative.nano.services.http.model.HttpObject;
@@ -10,8 +11,10 @@ import org.nanonative.nano.services.http.model.HttpObject;
 import java.util.Map;
 
 import static org.ab.sentinel.util.ResponseHelper.jsonOk;
+import static org.ab.sentinel.util.ResponseHelper.missingFields;
 import static org.ab.sentinel.util.ResponseHelper.options;
 import static org.ab.sentinel.util.ResponseHelper.problem;
+import static org.nanonative.nano.helper.NanoUtils.hasText;
 
 public class AppController {
 
@@ -31,33 +34,56 @@ public class AppController {
         }
     }
 
-    public static void integrationRequest(Event event) {
-        HttpObject request = event.payload(HttpObject.class);
-        if (request.isMethodPost() && request.pathMatch("/app/integration")) {
-            final LinkedTypeMap body = request.bodyAsJson().asMap();
-
-            final String token = body.asString("token");
-
-            if (!JwtHelper.verify(token)) {
-                problem(event, 500, "Not allowed");
-                return;
-            }
-
-            final Integer appId = body.asInt("app_id");
-            final String userId = body.asString("user_id");
-
-            switch(appId) {
-                case 1: GithubDto githubDto = new GithubDto(userId, body.asString("access_token"), body.asString("opts"));
-                    event.context().sendEventR(AppEvents.GITHUB_INT_REQ, () -> githubDto).responseOpt(Boolean.class).ifPresentOrElse(gh -> {
-                        if (!gh) {
-                            problem(event, 422, "Invalid credentials");
-                        } else {
-                            jsonOk(event, Map.of("status", "success"));
-                        }
-
-                }, () -> problem(event, 500, "App not available"));
-                default: problem(event, 500, "App not available");
-            }
+    public static void integrationRequest(final Event event) {
+        final HttpObject req = event.payload(HttpObject.class);
+        if (!(req.isMethodPost() && req.pathMatch("/app/integration"))) {
+            return;
         }
+
+        final LinkedTypeMap body = req.bodyAsJson().asMap();
+
+        final String token = body.asString("token");
+        if (!hasText(token) || !JwtHelper.verify(token)) {
+            problem(event, 401, "Not allowed");
+            return;
+        }
+
+        final String missing = missingFields(body, "app_id", "user_id");
+        if (null != missing) {
+            problem(event, 400, String.format("Missing required field(s): %s", missing));
+            return;
+        }
+
+        final int appId = body.asInt("app_id");
+        final String userId = body.asString("user_id");
+
+        switch (appId) {
+            case 1 -> handleGithubIntegration(event, body, userId, appId);
+            default -> problem(event, 404, "App not available");
+        }
+    }
+
+    private static void handleGithubIntegration(final Event event, final LinkedTypeMap body, final String userId, final int appId) {
+        final String missing = missingFields(body, "access_token");
+        if (missing != null) {
+            problem(event, 400, "Missing required field(s): " + missing);
+            return;
+        }
+        final GithubDto githubDto = new GithubDto(
+            userId,
+            body.asString("access_token"),
+            body.asStringOpt("opts").orElse(""),
+            appId
+        );
+        event.context()
+            .sendEventR(AppEvents.GITHUB_INT_REQ, () -> githubDto)
+            .responseOpt(GithubTokenValidationResultDto.class)
+            .ifPresentOrElse(gh -> {
+                if (!gh.ok()) {
+                    problem(event, gh.statusCode(), gh.reason());
+                } else {
+                    jsonOk(event, Map.of("integration", "success"));
+                }
+            }, () -> problem(event, 502, "GitHub token validation unavailable"));
     }
 }

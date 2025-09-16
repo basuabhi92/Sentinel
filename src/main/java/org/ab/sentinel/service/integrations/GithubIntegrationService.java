@@ -55,6 +55,7 @@ public class GithubIntegrationService extends Service {
             .headerMap(headers)
             .timeout(10000);
 
+        // Remote call to Github will fail without Https
         final HttpObject response = this.context
             .newEvent(EVENT_SEND_HTTP)
             .payload(() -> ghReq)

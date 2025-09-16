@@ -15,7 +15,13 @@ public class ResponseHelper {
 
     private static final String CORS_METHODS = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
 
-    public static void jsonOk(final Event event, final Map<String, Object> body) {
+    public static void jsonOk(final Event event, final Map<String, ?> body) {
+        HttpObject request = event.payload(HttpObject.class);
+        HttpObject resp = request.corsResponse(request.headerMap().asString("Origin"), CORS_METHODS, null, 86400, true).statusCode(200).contentType(ContentType.APPLICATION_JSON).body(body);
+        event.response(resp);
+    }
+
+    public static void jsonOk(final Event event, final String body) {
         HttpObject request = event.payload(HttpObject.class);
         HttpObject resp = request.corsResponse(request.headerMap().asString("Origin"), CORS_METHODS, null, 86400, true).statusCode(200).contentType(ContentType.APPLICATION_JSON).body(body);
         event.response(resp);

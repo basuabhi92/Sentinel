@@ -1,6 +1,12 @@
 package org.ab.sentinel.controller;
 
+import berlin.yuna.typemap.logic.JsonEncoder;
 import berlin.yuna.typemap.model.LinkedTypeMap;
+import berlin.yuna.typemap.model.Type;
+import berlin.yuna.typemap.model.TypeInfo;
+import berlin.yuna.typemap.model.TypeListI;
+import berlin.yuna.typemap.model.TypeMap;
+import berlin.yuna.typemap.model.TypeMapI;
 import org.ab.sentinel.AppEvents;
 import org.ab.sentinel.dto.github.GithubDto;
 import org.ab.sentinel.dto.github.GithubTokenValidationResultDto;
@@ -8,6 +14,8 @@ import org.ab.sentinel.util.JwtHelper;
 import org.nanonative.nano.helper.event.model.Event;
 import org.nanonative.nano.services.http.model.HttpObject;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.ab.sentinel.util.ResponseHelper.jsonOk;
@@ -27,10 +35,12 @@ public class AppController {
 
     public static void getApps(Event event) {
         HttpObject request = event.payload(HttpObject.class);
+
         if (request.isMethodGet() && request.pathMatch("/app/list")) {
-            event.context().sendEventR(AppEvents.APP_LIST, () -> null).responseOpt(Map.class).ifPresentOrElse(apps -> {
-                jsonOk(event, apps);
-            }, () -> problem(event, 500, "No Apps found"));
+            event.context().sendEventR(AppEvents.APPS_LIST, () -> Collections.EMPTY_LIST).responseOpt(LinkedHashMap.class).ifPresentOrElse(apps -> {
+                jsonOk(event, JsonEncoder.toJson(apps));
+            },
+                () -> problem(event, 500, "No Apps found"));
         }
     }
 
@@ -40,13 +50,21 @@ public class AppController {
             return;
         }
 
-        final LinkedTypeMap body = req.bodyAsJson().asMap();
+        String auth = req.header("Authorization");
 
-        final String token = body.asString("token");
+        if (auth == null || !auth.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            problem(event, 401, "Missing bearer token");
+            return;
+        }
+
+        final String token = auth.substring(7).trim();
+
         if (!hasText(token) || !JwtHelper.verify(token)) {
             problem(event, 401, "Not allowed");
             return;
         }
+
+        final LinkedTypeMap body = req.bodyAsJson().asMap();
 
         final String missing = missingFields(body, "app_id", "user_id");
         if (null != missing) {

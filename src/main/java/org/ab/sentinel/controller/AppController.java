@@ -37,7 +37,7 @@ public class AppController {
         HttpObject request = event.payload(HttpObject.class);
 
         if (request.isMethodGet() && request.pathMatch("/app/list")) {
-            event.context().sendEventR(AppEvents.APPS_LIST, () -> Collections.EMPTY_LIST).responseOpt(LinkedHashMap.class).ifPresentOrElse(apps -> {
+            event.context().sendEventR(AppEvents.APPS_LIST, () -> null).responseOpt(LinkedHashMap.class).ifPresentOrElse(apps -> {
                 jsonOk(event, JsonEncoder.toJson(apps));
             },
                 () -> problem(event, 500, "No Apps found"));

@@ -5,6 +5,7 @@ import org.ab.sentinel.service.PostgreSqlService;
 import org.ab.sentinel.controller.UserController;
 import org.ab.sentinel.service.integrations.GithubIntegrationService;
 import org.nanonative.nano.core.Nano;
+import org.nanonative.nano.services.http.HttpClient;
 import org.nanonative.nano.services.http.HttpServer;
 
 import java.util.Map;
@@ -21,7 +22,7 @@ public class App {
             CONFIG_LOG_LEVEL, DEBUG,
             CONFIG_LOG_FORMATTER, "console",
             CONFIG_SERVICE_HTTP_PORT, "8080"
-        ), new HttpServer(), new PostgreSqlService(), new GithubIntegrationService());
+        ), new HttpServer(), new HttpClient(), new PostgreSqlService(), new GithubIntegrationService());
 
 
         nano.context(UserController.class)

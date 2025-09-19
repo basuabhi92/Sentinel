@@ -33,7 +33,7 @@ public class UserController {
                 if (email == null || password == null || email.isBlank() || password.isBlank()) {
                     event.respond(problem(event, 400, "email and password are required"));
                 }
-                event.context().newEvent(AppEvents.FETCH_USER, () -> email).responseOpt(UsersRecord.class).ifPresentOrElse(user -> {
+                event.context().newEvent(AppEvents.FETCH_USER, () -> email).send().responseOpt(UsersRecord.class).ifPresentOrElse(user -> {
                     final String storedHash = user.get(USERS.PASSWORD_HASH);
                     if (passwords.verify(password, storedHash)) {
                         final String token = JwtHelper.createToken(Map.of("sub", user.get(USERS.ID), "email", email), TOKEN_TTL);
@@ -63,7 +63,7 @@ public class UserController {
                 }
 
                 final String hash = passwords.hash(password);
-                event.context().newEvent(AppEvents.ADD_USER, () -> new UserDto(email, hash, name)).responseOpt(UsersRecord.class).ifPresentOrElse(user -> {
+                event.context().newEvent(AppEvents.ADD_USER, () -> new UserDto(email, hash, name)).send().responseOpt(UsersRecord.class).ifPresentOrElse(user -> {
                     final String token = JwtHelper.createToken(Map.of("sub", user.getId(), "email", email), TOKEN_TTL);
                     event.respond(jsonOk(event, Map.of("token", token)));
 

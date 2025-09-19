@@ -23,7 +23,7 @@ public class AppController {
             .filter(HttpObject::isMethodGet)
             .filter(request -> request.pathMatch("/app/list"))
             .ifPresent(request -> {
-                event.context().newEvent(AppEvents.FETCH_APPS, () -> null).responseOpt(Map.class).ifPresentOrElse(apps -> {
+                event.context().newEvent(AppEvents.FETCH_APPS, () -> null).send().responseOpt(Map.class).ifPresentOrElse(apps -> {
                         event.respond(jsonOk(event, JsonEncoder.toJson(apps)));
                     },
                     () -> event.respond(problem(event, 500, "No Apps found")));
@@ -76,6 +76,7 @@ public class AppController {
         );
         event.context()
             .newEvent(AppEvents.GITHUB_INT_REQ, () -> githubDto)
+            .send()
             .responseOpt(GithubTokenValidationResultDto.class)
             .ifPresentOrElse(gh -> {
                 if (!gh.ok()) {

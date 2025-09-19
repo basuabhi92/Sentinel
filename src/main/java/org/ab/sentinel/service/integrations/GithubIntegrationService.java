@@ -65,7 +65,7 @@ public class GithubIntegrationService extends Service {
         if (response.statusCode() == 200) {
             var res = new GithubTokenValidationResultDto(true, response.statusCode(), "", lastModified, xPollInterval, expiresAt, daysRemaining);
             var req = new AppIntegrationRequestDto(UUID.fromString(githubDto.userId()), githubDto.appId(), githubDto.accessToken(), scopes, expiresAt);
-            return context.newEvent(AppEvents.APP_INT_REQ, () -> req).responseOpt(IntegrationsRecord.class).map(rec -> res).orElseGet(() -> new GithubTokenValidationResultDto(false, 409, "Db update failed", lastModified, xPollInterval, expiresAt, daysRemaining));
+            return context.newEvent(AppEvents.APP_INT_REQ, () -> req).send().responseOpt(IntegrationsRecord.class).map(rec -> res).orElseGet(() -> new GithubTokenValidationResultDto(false, 409, "Db update failed", lastModified, xPollInterval, expiresAt, daysRemaining));
         } else if (response.statusCode() >= 400) {
             return new GithubTokenValidationResultDto(false, response.statusCode(), "invalid token", lastModified, xPollInterval, expiresAt, daysRemaining);
         } else {

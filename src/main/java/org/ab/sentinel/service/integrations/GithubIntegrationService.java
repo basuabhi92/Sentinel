@@ -41,26 +41,18 @@ public class GithubIntegrationService extends Service {
     }
 
     @Override
-    public void onEvent(final Event event) {
-        event.ifPresentAck(AppEvents.GITHUB_INT_REQ, GithubDto.class, this::githubIntReq);
+    public void onEvent(final Event<?, ?> event) {
+        event.channel(AppEvents.GITHUB_INT_REQ).ifPresent(ev -> ev.respond(githubIntReq(ev.payload())));
     }
 
     private GithubTokenValidationResultDto githubIntReq(GithubDto githubDto) {
 
         Map<String, String> headers = Map.of("Authorization", String.format("Bearer %s", githubDto.accessToken()), "Accept", "application/vnd.github+json", "X-GitHub-Api-Version", "2022-11-28");
 
-        HttpObject ghReq = new HttpObject()
-            .path(GITHUB_URI)
-            .methodType(HttpMethod.GET)
-            .headerMap(headers)
-            .timeout(10000);
+        HttpObject ghReq = new HttpObject().path(GITHUB_URI).methodType(HttpMethod.GET).headerMap(headers).timeout(10000);
 
         // Remote call to Github will fail without Https
-        final HttpObject response = this.context
-            .newEvent(EVENT_SEND_HTTP)
-            .payload(() -> ghReq)
-            .send()
-            .response(HttpObject.class);
+        final HttpObject response = this.context.newEvent(EVENT_SEND_HTTP).payload(() -> ghReq).send().response();
 
         String scopes = response.headerMap().asString("X-OAuth-Scopes");
         String sso = response.headerMap().asString("X-GitHub-SSO");
@@ -73,8 +65,7 @@ public class GithubIntegrationService extends Service {
         if (response.statusCode() == 200) {
             var res = new GithubTokenValidationResultDto(true, response.statusCode(), "", lastModified, xPollInterval, expiresAt, daysRemaining);
             var req = new AppIntegrationRequestDto(UUID.fromString(githubDto.userId()), githubDto.appId(), githubDto.accessToken(), scopes, expiresAt);
-            return context.sendEventR(AppEvents.APP_INT_REQ, () -> req).responseOpt(IntegrationsRecord.class).map(rec -> res)
-                .orElseGet(() -> new GithubTokenValidationResultDto(false, 409, "Db update failed", lastModified, xPollInterval, expiresAt, daysRemaining));
+            return context.newEvent(AppEvents.APP_INT_REQ, () -> req).responseOpt(IntegrationsRecord.class).map(rec -> res).orElseGet(() -> new GithubTokenValidationResultDto(false, 409, "Db update failed", lastModified, xPollInterval, expiresAt, daysRemaining));
         } else if (response.statusCode() >= 400) {
             return new GithubTokenValidationResultDto(false, response.statusCode(), "invalid token", lastModified, xPollInterval, expiresAt, daysRemaining);
         } else {

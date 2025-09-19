@@ -62,7 +62,7 @@ public class JwtHelper {
         return r == 0;
     }
 
-    private static Map<String, Object> merge(Map<String, Object> a, Map<String, Object> b) {
+    private static Map<String, Object> merge(Map<String, Object> a, Map<String, Long> b) {
         var m = new HashMap<String, Object>(a);
         m.putAll(b); return m;
     }

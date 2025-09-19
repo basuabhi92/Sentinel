@@ -4,7 +4,6 @@ import berlin.yuna.typemap.logic.JsonEncoder;
 import berlin.yuna.typemap.model.LinkedTypeMap;
 import org.ab.sentinel.AppEvents;
 import org.ab.sentinel.dto.github.GithubDto;
-import org.ab.sentinel.dto.github.GithubTokenValidationResultDto;
 import org.ab.sentinel.util.JwtHelper;
 import org.nanonative.nano.helper.event.model.Event;
 import org.nanonative.nano.services.http.model.HttpObject;
@@ -23,7 +22,7 @@ public class AppController {
             .filter(HttpObject::isMethodGet)
             .filter(request -> request.pathMatch("/app/list"))
             .ifPresent(request -> {
-                event.context().newEvent(AppEvents.FETCH_APPS, () -> null).send().responseOpt(Map.class).ifPresentOrElse(apps -> {
+                event.context().newEvent(AppEvents.FETCH_APPS).send().responseOpt().ifPresentOrElse(apps -> {
                         event.respond(jsonOk(event, JsonEncoder.toJson(apps)));
                     },
                     () -> event.respond(problem(event, 500, "No Apps found")));
@@ -77,7 +76,7 @@ public class AppController {
         event.context()
             .newEvent(AppEvents.GITHUB_INT_REQ, () -> githubDto)
             .send()
-            .responseOpt(GithubTokenValidationResultDto.class)
+            .responseOpt()
             .ifPresentOrElse(gh -> {
                 if (!gh.ok()) {
                     event.respond(problem(event, gh.statusCode(), gh.reason()));

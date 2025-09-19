@@ -5,7 +5,6 @@ import org.ab.sentinel.AppEvents;
 import org.ab.sentinel.dto.github.GithubDto;
 import org.ab.sentinel.dto.github.GithubTokenValidationResultDto;
 import org.ab.sentinel.dto.integrations.AppIntegrationRequestDto;
-import org.ab.sentinel.jooq.tables.records.IntegrationsRecord;
 import org.nanonative.nano.core.model.Service;
 import org.nanonative.nano.helper.event.model.Event;
 import org.nanonative.nano.services.http.model.HttpMethod;
@@ -65,7 +64,7 @@ public class GithubIntegrationService extends Service {
         if (response.statusCode() == 200) {
             var res = new GithubTokenValidationResultDto(true, response.statusCode(), "", lastModified, xPollInterval, expiresAt, daysRemaining);
             var req = new AppIntegrationRequestDto(UUID.fromString(githubDto.userId()), githubDto.appId(), githubDto.accessToken(), scopes, expiresAt);
-            return context.newEvent(AppEvents.APP_INT_REQ, () -> req).send().responseOpt(IntegrationsRecord.class).map(rec -> res).orElseGet(() -> new GithubTokenValidationResultDto(false, 409, "Db update failed", lastModified, xPollInterval, expiresAt, daysRemaining));
+            return context.newEvent(AppEvents.APP_INT_REQ, () -> req).send().responseOpt().map(rec -> res).orElseGet(() -> new GithubTokenValidationResultDto(false, 409, "Db update failed", lastModified, xPollInterval, expiresAt, daysRemaining));
         } else if (response.statusCode() >= 400) {
             return new GithubTokenValidationResultDto(false, response.statusCode(), "invalid token", lastModified, xPollInterval, expiresAt, daysRemaining);
         } else {

@@ -24,7 +24,6 @@ import org.nanonative.nano.helper.event.model.Event;
 import javax.sql.DataSource;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneOffset;
-import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.stream.Collectors;
@@ -64,11 +63,11 @@ public final class PostgreSqlService extends Service {
     public void onEvent(final Event event) {
         event.ifPresentAck(AppEvents.USER_REGISTER, UserDto.class, this::saveUser);
         event.ifPresentAck(AppEvents.USER_LOGIN, String.class, this::fetchUser);
-        event.ifPresentAck(AppEvents.APPS_LIST, List.class, this::getApps);
+        event.ifPresentAck(AppEvents.APPS_LIST, this::getApps);
         event.ifPresentAck(AppEvents.APP_INT_REQ, AppIntegrationRequestDto.class, this::saveNewUserIntegration);
     }
 
-    private Map<String, AppDto> getApps(final List<String> excludedApps) {
+    private Map<String, AppDto> getApps() {
         final Map<String, AppsRecord> apps = dsl.selectFrom(APPS).fetchMap(APPS.NAME);
         return apps.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> {
                 var r = e.getValue();

@@ -60,11 +60,11 @@ public final class PostgreSqlService extends Service {
     }
 
     @Override
-    public void onEvent(final Event event) {
-        event.ifPresentAck(AppEvents.USER_REGISTER, UserDto.class, this::saveUser);
-        event.ifPresentAck(AppEvents.USER_LOGIN, String.class, this::fetchUser);
-        event.ifPresentAck(AppEvents.APPS_LIST, this::getApps);
-        event.ifPresentAck(AppEvents.APP_INT_REQ, AppIntegrationRequestDto.class, this::saveNewUserIntegration);
+    public void onEvent(final Event<?, ?> event) {
+        event.channel(AppEvents.ADD_USER).ifPresent(ev -> ev.respond(saveUser(ev.payload())));
+        event.channel(AppEvents.FETCH_USER).ifPresent(ev -> ev.respond(fetchUser(ev.payload())));
+        event.channel(AppEvents.FETCH_APPS).ifPresent(ev -> ev.respond(getApps()));
+        event.channel(AppEvents.APP_INT_REQ).ifPresent(ev -> ev.respond(saveNewUserIntegration(ev.payload())));
     }
 
     private Map<String, AppDto> getApps() {

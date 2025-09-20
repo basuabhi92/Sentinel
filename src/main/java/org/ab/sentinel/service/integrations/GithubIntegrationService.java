@@ -18,6 +18,9 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.nanonative.nano.services.http.HttpClient.EVENT_SEND_HTTP;
+import static org.nanonative.nano.services.http.model.HttpHeaders.ACCEPT;
+import static org.nanonative.nano.services.http.model.HttpHeaders.AUTHORIZATION;
+import static org.nanonative.nano.services.http.model.HttpHeaders.LAST_MODIFIED;
 
 public class GithubIntegrationService extends Service {
 
@@ -46,18 +49,16 @@ public class GithubIntegrationService extends Service {
 
     private GithubTokenValidationResultDto githubIntReq(GithubDto githubDto) {
 
-        Map<String, String> headers = Map.of("Authorization", String.format("Bearer %s", githubDto.accessToken()), "Accept", "application/vnd.github+json", "X-GitHub-Api-Version", "2022-11-28");
+        Map<String, String> headers = Map.of(AUTHORIZATION, String.format("Bearer %s", githubDto.accessToken()), ACCEPT, "application/vnd.github+json", "X-GitHub-Api-Version", "2022-11-28");
 
         HttpObject ghReq = new HttpObject().path(GITHUB_URI).methodType(HttpMethod.GET).headerMap(headers).timeout(10000);
 
-        // Remote call to Github will fail without Https
         final HttpObject response = this.context.newEvent(EVENT_SEND_HTTP).payload(() -> ghReq).send().response();
 
-        String scopes = response.headerMap().asString("X-OAuth-Scopes");
-        String sso = response.headerMap().asString("X-GitHub-SSO");
-        String lastModified = response.headerMap().asString("Last-Modified");
-        Integer xPollInterval = response.headerMap().asInt("X-Poll-Interval");
-        String expHdr = response.headerMap().asStringOpt("GitHub-Authentication-Token-Expiration").orElse("github-authentication-token-expiration");
+        String scopes = response.headerMap().asString("x-oauth-scopes");
+        String lastModified = response.headerMap().asString(LAST_MODIFIED);
+        Integer xPollInterval = response.headerMap().asInt("x-poll-interval");
+        String expHdr = response.headerMap().asString("github-authentication-token-expiration");
         Instant expiresAt = parseExpiry(expHdr);
         long daysRemaining = expiresAt == null ? -1 : Duration.between(Instant.now(), expiresAt).toDays();
 
@@ -68,7 +69,7 @@ public class GithubIntegrationService extends Service {
         } else if (response.statusCode() >= 400) {
             return new GithubTokenValidationResultDto(false, response.statusCode(), "invalid token", lastModified, xPollInterval, expiresAt, daysRemaining);
         } else {
-            boolean hasNotifScope = scopes != null && (scopes.contains("notifications") || scopes.contains("repo"));
+            boolean hasNotifScope = scopes != null && scopes.contains("notifications") && scopes.contains("repo");
             if (!hasNotifScope) {
                 return new GithubTokenValidationResultDto(false, response.statusCode(), "missing scope", lastModified, xPollInterval, expiresAt, daysRemaining);
             }

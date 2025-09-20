@@ -31,9 +31,9 @@ import java.util.stream.Collectors;
 
 public final class PostgreSqlService extends Service {
 
-    public static final String CONFIG_DB_URL = registerConfig("db_url", "Database url");
-    public static final String CONFIG_DB_USER = registerConfig("db_user", "Database user");
-    public static final String CONFIG_DB_PASS = registerConfig("db_pass", "Database password");
+    public static final String CONFIG_DB_URL = registerConfig("app_db_url", "Database url");
+    public static final String CONFIG_DB_USER = registerConfig("app_db_user", "Database user");
+    public static final String CONFIG_DB_PASS = registerConfig("app_db_pass", "Database password");
     private final String localDbUrl = "jdbc:postgresql://127.0.0.1:5432/nanodb?sslmode=disable";
     private final String localDbUser = "nanouser";
     private final String localDbPass = "CHANGEME";
@@ -88,7 +88,6 @@ public final class PostgreSqlService extends Service {
     }
 
     private UsersRecord saveUser(final UserDto user) {
-
         final UsersRecord userRecord = dsl.transactionResult(configuration -> {
             DSLContext ctx = DSL.using(configuration);
             if (ctx.fetchExists(ctx.selectOne().from(USERS).where(USERS.EMAIL.eq(user.email())))) {

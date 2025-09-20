@@ -18,11 +18,6 @@ public class ResponseHelper {
         return resp;
     }
 
-    public static HttpObject jsonOk(final Event<HttpObject, HttpObject> event, final String body) {
-        HttpObject resp = event.payload().createCorsResponse().statusCode(200).contentType(ContentType.APPLICATION_JSON).body(body);
-        return resp;
-    }
-
     public static HttpObject problem(final Event<HttpObject, HttpObject> event, final int status, final String message) {
         HttpObject resp = event.payload().createCorsResponse().statusCode(status).contentType(ContentType.APPLICATION_PROBLEM_JSON).body(Map.of("message", message, "timestamp", System.currentTimeMillis()));
         return resp;

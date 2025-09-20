@@ -1,6 +1,5 @@
 package org.ab.sentinel.controller;
 
-import berlin.yuna.typemap.logic.JsonEncoder;
 import berlin.yuna.typemap.model.LinkedTypeMap;
 import org.ab.sentinel.AppEvents;
 import org.ab.sentinel.dto.github.GithubDto;
@@ -14,6 +13,7 @@ import static org.ab.sentinel.util.ResponseHelper.jsonOk;
 import static org.ab.sentinel.util.ResponseHelper.missingFields;
 import static org.ab.sentinel.util.ResponseHelper.problem;
 import static org.nanonative.nano.helper.NanoUtils.hasText;
+import static org.nanonative.nano.services.http.model.HttpHeaders.AUTHORIZATION;
 
 public class AppController {
 
@@ -23,7 +23,7 @@ public class AppController {
             .filter(request -> request.pathMatch("/app/list"))
             .ifPresent(request -> {
                 event.context().newEvent(AppEvents.FETCH_APPS).send().responseOpt().ifPresentOrElse(apps -> {
-                        event.respond(jsonOk(event, JsonEncoder.toJson(apps)));
+                        event.respond(jsonOk(event, apps));
                     },
                     () -> event.respond(problem(event, 500, "No Apps found")));
             });
@@ -34,7 +34,7 @@ public class AppController {
             .filter(HttpObject::isMethodPost)
             .filter(request -> request.pathMatch("/app/integration"))
             .ifPresent(request -> {
-                String auth = request.header("Authorization");
+                String auth = request.header(AUTHORIZATION);
                 if (auth == null || !auth.regionMatches(true, 0, "Bearer ", 0, 7)) {
                     event.respond(problem(event, 401, "Missing bearer token"));
                     return;

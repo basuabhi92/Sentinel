@@ -56,7 +56,7 @@ class UserControllerTest {
             .send(nano.context(UserControllerTest.class));
 
         assertThat(result).isNotNull();
-        assertThat(result.bodyAsString()).contains("message");
+        assertThat(result.bodyAsString()).contains("token");
         assertThat(nano.stop(UserControllerTest.class).waitForStop().isReady()).isFalse();
     }
 

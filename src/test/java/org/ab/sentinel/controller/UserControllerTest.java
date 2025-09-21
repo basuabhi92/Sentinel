@@ -14,15 +14,11 @@ import org.nanonative.nano.services.http.model.HttpObject;
 
 import java.util.Map;
 
-import static org.ab.sentinel.service.PostgreSqlService.CONFIG_DB_PASS;
-import static org.ab.sentinel.service.PostgreSqlService.CONFIG_DB_URL;
-import static org.ab.sentinel.service.PostgreSqlService.CONFIG_DB_USER;
+import static org.ab.sentinel.service.PostgreSqlService.CONFIG_DB_HOST;
+import static org.ab.sentinel.service.PostgreSqlService.CONFIG_DB_PORT;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.nanonative.nano.services.http.HttpServer.CONFIG_SERVICE_HTTP_PORT;
+import static org.nanonative.nano.core.model.Context.EVENT_CONFIG_CHANGE;
 import static org.nanonative.nano.services.http.HttpServer.EVENT_HTTP_REQUEST;
-import static org.nanonative.nano.services.logging.LogService.CONFIG_LOG_FORMATTER;
-import static org.nanonative.nano.services.logging.LogService.CONFIG_LOG_LEVEL;
-import static org.nanonative.nano.services.logging.model.LogLevel.DEBUG;
 
 class UserControllerTest {
 
@@ -37,14 +33,12 @@ class UserControllerTest {
 
     @Test
     void registerUser() {
-        final Nano nano = new Nano(Map.of(
-            CONFIG_LOG_LEVEL, DEBUG,
-            CONFIG_LOG_FORMATTER, "console",
-            CONFIG_SERVICE_HTTP_PORT, "8080",
-            CONFIG_DB_URL, dbProp.dbUrl(),
-            CONFIG_DB_USER, dbProp.dbUser(),
-            CONFIG_DB_PASS, dbProp.dbPass()
-        ), new HttpServer(), new PostgreSqlService(), new GithubIntegrationService(), new HttpClient());
+        final Nano nano = new Nano(Map.of("app_profiles", "dev"), new HttpServer(), new PostgreSqlService(), new GithubIntegrationService(), new HttpClient());
+
+        nano.context().newEvent(EVENT_CONFIG_CHANGE, () -> Map.of(
+            CONFIG_DB_HOST, dbProp.dbHost(),
+            CONFIG_DB_PORT, dbProp.dbPort()
+        )).send();
 
         nano.context(UserControllerTest.class)
             .subscribeEvent(EVENT_HTTP_REQUEST, UserController::registerUser);
@@ -62,14 +56,12 @@ class UserControllerTest {
 
     @Test
     void getApps() {
-        final Nano nano = new Nano(Map.of(
-            CONFIG_LOG_LEVEL, DEBUG,
-            CONFIG_LOG_FORMATTER, "console",
-            CONFIG_SERVICE_HTTP_PORT, "8080",
-            CONFIG_DB_URL, dbProp.dbUrl(),
-            CONFIG_DB_USER, dbProp.dbUser(),
-            CONFIG_DB_PASS, dbProp.dbPass()
-        ), new HttpServer(), new PostgreSqlService(), new GithubIntegrationService(), new HttpClient());
+        final Nano nano = new Nano(Map.of("app_profiles", "dev"), new HttpServer(), new PostgreSqlService(), new GithubIntegrationService(), new HttpClient());
+
+        nano.context(UserControllerTest.class).newEvent(EVENT_CONFIG_CHANGE, () -> Map.of(
+            CONFIG_DB_HOST, dbProp.dbHost(),
+            CONFIG_DB_PORT, dbProp.dbPort()
+        )).send();
 
         nano.context(AppController.class)
             .subscribeEvent(EVENT_HTTP_REQUEST, AppController::getApps);

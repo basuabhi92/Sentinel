@@ -31,22 +31,29 @@ import java.util.stream.Collectors;
 
 public final class PostgreSqlService extends Service {
 
-    public static final String CONFIG_DB_URL = registerConfig("app_db_url", "Database url");
-    public static final String CONFIG_DB_USER = registerConfig("app_db_user", "Database user");
-    public static final String CONFIG_DB_PASS = registerConfig("app_db_pass", "Database password");
-    private final String localDbUrl = "jdbc:postgresql://127.0.0.1:5432/nanodb?sslmode=disable";
-    private final String localDbUser = "nanouser";
-    private final String localDbPass = "CHANGEME";
-    private String dbUrl;
+    public static final String CONFIG_DB_USER = registerConfig("pg_db_user", "Database user");
+    public static final String CONFIG_DB_PASS = registerConfig("pg_db_pass", "Database password");
+    public static final String CONFIG_DB_NAME = registerConfig("pg_db_name", "Database name");
+    public static final String CONFIG_DB_HOST = registerConfig("pg_db_host", "Database host");
+    public static final String CONFIG_DB_PORT = registerConfig("pg_db_port", "Database port");
+    public static final String CONFIG_DB_OPTIONS = registerConfig("pg_db_opts", "Database options");
+    private String dbHost;
+    private Integer dbPort;
+    private String dbName;
     private String dbUser;
     private String dbPass;
+    private String dbOpts;
     private DSLContext dsl;
 
     @Override
     public void start() {
-        DataSource ds = DataSourceFactory.create(dbUrl, dbUser, dbPass);
-        this.dsl = JooqFactory.create(ds);
+        createOrUpdateDs(dbHost, dbPort, dbName, dbUser, dbPass, dbOpts);
         context.info(() -> "[{}] started", name());
+    }
+
+    private void createOrUpdateDs(String host, Integer port, String name, String user, String pass, String options) {
+        DataSource ds = DataSourceFactory.create(host, port, name, user, pass, options);
+        this.dsl = JooqFactory.create(ds);
     }
 
     @Override
@@ -99,9 +106,15 @@ public final class PostgreSqlService extends Service {
     }
 
     @Override
-    public void configure(final TypeMapI<?> configs, final TypeMapI<?> merged) {
-        this.dbUrl = merged.asStringOpt(CONFIG_DB_URL).orElseGet(() -> localDbUrl);
-        this.dbUser = merged.asStringOpt(CONFIG_DB_USER).orElseGet(() -> localDbUser);
-        this.dbPass = merged.asStringOpt(CONFIG_DB_PASS).orElseGet(() -> localDbPass);
+    public void configure(final TypeMapI<?> changes, final TypeMapI<?> merged) {
+        this.dbName = merged.asString(CONFIG_DB_NAME);
+        this.dbUser = merged.asString(CONFIG_DB_USER);
+        this.dbPass = merged.asString(CONFIG_DB_PASS);
+        this.dbPort = merged.asInt(CONFIG_DB_PORT);
+        this.dbHost = merged.asString(CONFIG_DB_HOST);
+        this.dbOpts = merged.asStringOpt(CONFIG_DB_OPTIONS).orElse(null);
+        if (changes.containsKey(CONFIG_DB_PORT)) {
+            createOrUpdateDs(this.dbHost, changes.asInt(CONFIG_DB_PORT), this.dbName, this.dbUser, this.dbPass, this.dbOpts);
+        }
     }
 }

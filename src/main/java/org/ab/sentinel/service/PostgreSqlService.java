@@ -8,6 +8,7 @@ import static org.ab.sentinel.jooq.Tables.INTEGRATIONS;
 import static org.ab.sentinel.jooq.tables.Users.USERS;
 import static org.nanonative.nano.helper.config.ConfigRegister.registerConfig;
 
+import org.ab.sentinel.db.DataSourceConfig;
 import org.ab.sentinel.db.DataSourceFactory;
 import org.ab.sentinel.db.JooqFactory;
 import org.ab.sentinel.dto.AppDto;
@@ -43,17 +44,14 @@ public final class PostgreSqlService extends Service {
     private String dbUser;
     private String dbPass;
     private String dbOpts;
+    private DataSource ds;
+    private DataSourceConfig dsConfig;
     private DSLContext dsl;
 
     @Override
     public void start() {
         createOrUpdateDs(dbHost, dbPort, dbName, dbUser, dbPass, dbOpts);
         context.info(() -> "[{}] started", name());
-    }
-
-    private void createOrUpdateDs(String host, Integer port, String name, String user, String pass, String options) {
-        DataSource ds = DataSourceFactory.create(host, port, name, user, pass, options);
-        this.dsl = JooqFactory.create(ds);
     }
 
     @Override
@@ -107,14 +105,26 @@ public final class PostgreSqlService extends Service {
 
     @Override
     public void configure(final TypeMapI<?> changes, final TypeMapI<?> merged) {
-        this.dbName = merged.asString(CONFIG_DB_NAME);
-        this.dbUser = merged.asString(CONFIG_DB_USER);
-        this.dbPass = merged.asString(CONFIG_DB_PASS);
-        this.dbPort = merged.asInt(CONFIG_DB_PORT);
-        this.dbHost = merged.asString(CONFIG_DB_HOST);
-        this.dbOpts = merged.asStringOpt(CONFIG_DB_OPTIONS).orElse(null);
+        this.dbName = changes.asStringOpt(CONFIG_DB_NAME).orElse(merged.asString(CONFIG_DB_NAME));
+        this.dbUser = changes.asStringOpt(CONFIG_DB_USER).orElse(merged.asString(CONFIG_DB_USER));
+
+        // On the config change event, this merged has values from application.properties and not application-<profile>.properties
+        // even after doing NanoUtils.readProfiles() and using the context returned.
+        this.dbPass = changes.asStringOpt(CONFIG_DB_PASS).orElse(merged.asString(CONFIG_DB_PASS));
+        this.dbPort = changes.asIntOpt(CONFIG_DB_PORT).orElse(merged.asInt(CONFIG_DB_PORT));
+        this.dbHost = changes.asStringOpt(CONFIG_DB_HOST).orElse(merged.asString(CONFIG_DB_HOST));
+        this.dbOpts = changes.asStringOpt(CONFIG_DB_OPTIONS).orElse(merged.asString(CONFIG_DB_OPTIONS));
         if (changes.containsKey(CONFIG_DB_PORT)) {
             createOrUpdateDs(this.dbHost, changes.asInt(CONFIG_DB_PORT), this.dbName, this.dbUser, this.dbPass, this.dbOpts);
+        }
+    }
+
+    private void createOrUpdateDs(String host, Integer port, String name, String user, String pass, String options) {
+        DataSourceConfig newConfig = new DataSourceConfig(host, port, name, user, pass, options);
+        if (null == this.dsConfig || !this.dsConfig.equals(newConfig)) {
+            this.ds = DataSourceFactory.create(newConfig);
+            this.dsl = JooqFactory.create(ds);
+            this.dsConfig = newConfig;
         }
     }
 }

@@ -8,13 +8,13 @@ import java.util.Optional;
 
 public final class DataSourceFactory {
 
-    public static DataSource create(String dbHost, Integer dbPort, String dbName, String dbUser, String dbPass, String options) {
-        return Optional.ofNullable(options)
-            .map(opt -> create(String.format("jdbc:postgresql://%s:%d/%s?%s", dbHost, dbPort, dbName, opt), dbUser, dbPass))
-            .orElseGet(() -> create(String.format("jdbc:postgresql://%s:%d/%s", dbHost, dbPort, dbName), dbUser, dbPass));
+    public static DataSource create(DataSourceConfig cfg) {
+        return Optional.ofNullable(cfg.options())
+            .map(opt -> create(String.format("jdbc:postgresql://%s:%d/%s?%s", cfg.host(), cfg.port(), cfg.name(), cfg.options()), cfg.user(), cfg.pass()))
+            .orElseGet(() -> create(String.format("jdbc:postgresql://%s:%d/%s", cfg.host(), cfg.port(), cfg.name()), cfg.user(), cfg.pass()));
     }
 
-    public static DataSource create(String dbUrl, String dbUser, String dbPass) {
+    private static DataSource create(String dbUrl, String dbUser, String dbPass) {
         var cfg = new HikariConfig();
         cfg.setJdbcUrl(dbUrl);
         cfg.setUsername(dbUser);

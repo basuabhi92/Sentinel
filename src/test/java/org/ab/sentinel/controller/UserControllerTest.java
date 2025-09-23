@@ -7,6 +7,8 @@ import org.ab.sentinel.service.integrations.GithubIntegrationService;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.nanonative.nano.core.Nano;
+import org.nanonative.nano.core.model.Context;
+import org.nanonative.nano.helper.NanoUtils;
 import org.nanonative.nano.services.http.HttpClient;
 import org.nanonative.nano.services.http.HttpServer;
 import org.nanonative.nano.services.http.model.HttpMethod;
@@ -15,6 +17,7 @@ import org.nanonative.nano.services.http.model.HttpObject;
 import java.util.Map;
 
 import static org.ab.sentinel.service.PostgreSqlService.CONFIG_DB_HOST;
+import static org.ab.sentinel.service.PostgreSqlService.CONFIG_DB_PASS;
 import static org.ab.sentinel.service.PostgreSqlService.CONFIG_DB_PORT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.nanonative.nano.core.model.Context.EVENT_CONFIG_CHANGE;
@@ -35,12 +38,15 @@ class UserControllerTest {
     void registerUser() {
         final Nano nano = new Nano(Map.of("app_profiles", "dev"), new HttpServer(), new PostgreSqlService(), new GithubIntegrationService(), new HttpClient());
 
-        nano.context().newEvent(EVENT_CONFIG_CHANGE, () -> Map.of(
+        Context ctx = NanoUtils.readProfiles(nano.context(UserControllerTest.class));
+        ctx.newEvent(EVENT_CONFIG_CHANGE, () -> Map.of(
             CONFIG_DB_HOST, dbProp.dbHost(),
-            CONFIG_DB_PORT, dbProp.dbPort()
-        )).send();
+            CONFIG_DB_PORT, dbProp.dbPort(),
+            // TODO: Remove the below line as password is already mentioned in dev properties file and this is a work around
+            CONFIG_DB_PASS, dbProp.dbPass()
+        )).broadcast(true).send();
 
-        nano.context(UserControllerTest.class)
+        ctx
             .subscribeEvent(EVENT_HTTP_REQUEST, UserController::registerUser);
 
         final HttpObject result = new HttpObject()

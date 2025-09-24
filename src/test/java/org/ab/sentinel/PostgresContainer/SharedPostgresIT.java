@@ -8,6 +8,8 @@ import org.flywaydb.core.Flyway;
 
 import java.util.concurrent.locks.ReentrantLock;
 
+import static org.testcontainers.containers.PostgreSQLContainer.POSTGRESQL_PORT;
+
 public final class SharedPostgresIT {
 
     private SharedPostgresIT() {}
@@ -22,7 +24,7 @@ public final class SharedPostgresIT {
 
     public static Postgres startDatabase() {
         if (null != pg && pg.isRunning()) {
-            return new Postgres(pg.getJdbcUrl(), pg.getUsername(), pg.getPassword());
+            return new Postgres(pg.getHost(), pg.getMappedPort(POSTGRESQL_PORT), pg.getDatabaseName(), pg.getUsername(), pg.getPassword());
         }
         lock.lock();
         if (null == pg || !pg.isRunning()) {
@@ -34,9 +36,8 @@ public final class SharedPostgresIT {
             pg.start();
         }
         lock.unlock();
-        Postgres dbProp = new Postgres(pg.getJdbcUrl(), pg.getUsername(), pg.getPassword());
         runFlyway(pg.getJdbcUrl(), pg.getUsername(), pg.getPassword());
-        return dbProp;
+        return new Postgres(pg.getHost(), pg.getMappedPort(POSTGRESQL_PORT), pg.getDatabaseName(), pg.getUsername(), pg.getPassword());
     }
 
     private static void runFlyway(String jdbcUrl, String user, String pass) {
@@ -55,7 +56,5 @@ public final class SharedPostgresIT {
             .validateMigrationNaming(true)
             .load()
             .migrate();
-
-        System.out.println("Flyway applied " + result.migrationsExecuted + " migrations");
     }
 }

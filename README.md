@@ -24,11 +24,9 @@ Event-first backend built on [Nano](https://github.com/NanoNative) with PostgreS
 
 ## Build & Run
 
-### Generate jOOQ classes and build project in one shot
 * Setup Postgres DB on local. Run command `docker-compose up flyway` to bring up Postgres instance on docker and run flyway migrations.
 * Execute command: sh jooq-generator-local.sh -> this script will set all required env variables and run `mvn -Pjooq clean generate-sources verify`.
-
-The above two steps should make the app ready to start (if all dependencies have been resolved).
+* Run command: `mvn exec:java`
 
 ## Security & Privacy
 App integrations require explicit user consent (OAuth or provider export).

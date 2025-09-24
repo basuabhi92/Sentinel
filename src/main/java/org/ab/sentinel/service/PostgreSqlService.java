@@ -8,6 +8,7 @@ import static org.ab.sentinel.jooq.Tables.INTEGRATIONS;
 import static org.ab.sentinel.jooq.tables.Users.USERS;
 import static org.nanonative.nano.helper.config.ConfigRegister.registerConfig;
 
+import org.ab.sentinel.db.DataSourceConfig;
 import org.ab.sentinel.db.DataSourceFactory;
 import org.ab.sentinel.db.JooqFactory;
 import org.ab.sentinel.dto.AppDto;
@@ -31,21 +32,25 @@ import java.util.stream.Collectors;
 
 public final class PostgreSqlService extends Service {
 
-    public static final String CONFIG_DB_URL = registerConfig("db_url", "Database url");
-    public static final String CONFIG_DB_USER = registerConfig("db_user", "Database user");
-    public static final String CONFIG_DB_PASS = registerConfig("db_pass", "Database password");
-    private final String localDbUrl = "jdbc:postgresql://127.0.0.1:5432/nanodb?sslmode=disable";
-    private final String localDbUser = "nanouser";
-    private final String localDbPass = "CHANGEME";
-    private String dbUrl;
+    public static final String CONFIG_DB_USER = registerConfig("pg_db_user", "Database user");
+    public static final String CONFIG_DB_PASS = registerConfig("pg_db_pass", "Database password");
+    public static final String CONFIG_DB_NAME = registerConfig("pg_db_name", "Database name");
+    public static final String CONFIG_DB_HOST = registerConfig("pg_db_host", "Database host");
+    public static final String CONFIG_DB_PORT = registerConfig("pg_db_port", "Database port");
+    public static final String CONFIG_DB_OPTIONS = registerConfig("pg_db_opts", "Database options");
+    private String dbHost;
+    private Integer dbPort;
+    private String dbName;
     private String dbUser;
     private String dbPass;
+    private String dbOpts;
+    private DataSource ds;
+    private DataSourceConfig dsConfig;
     private DSLContext dsl;
 
     @Override
     public void start() {
-        DataSource ds = DataSourceFactory.create(dbUrl, dbUser, dbPass);
-        this.dsl = JooqFactory.create(ds);
+        createOrUpdateDs(dbHost, dbPort, dbName, dbUser, dbPass, dbOpts);
         context.info(() -> "[{}] started", name());
     }
 
@@ -60,11 +65,11 @@ public final class PostgreSqlService extends Service {
     }
 
     @Override
-    public void onEvent(final Event event) {
-        event.ifPresentAck(AppEvents.USER_REGISTER, UserDto.class, this::saveUser);
-        event.ifPresentAck(AppEvents.USER_LOGIN, String.class, this::fetchUser);
-        event.ifPresentAck(AppEvents.APPS_LIST, this::getApps);
-        event.ifPresentAck(AppEvents.APP_INT_REQ, AppIntegrationRequestDto.class, this::saveNewUserIntegration);
+    public void onEvent(final Event<?, ?> event) {
+        event.channel(AppEvents.ADD_USER).ifPresent(ev -> ev.respond(saveUser(ev.payload())));
+        event.channel(AppEvents.FETCH_USER).ifPresent(ev -> ev.respond(fetchUser(ev.payload())));
+        event.channel(AppEvents.FETCH_APPS).ifPresent(ev -> ev.respond(getApps()));
+        event.channel(AppEvents.APP_INT_REQ).ifPresent(ev -> ev.respond(saveNewUserIntegration(ev.payload())));
     }
 
     private Map<String, AppDto> getApps() {
@@ -88,7 +93,6 @@ public final class PostgreSqlService extends Service {
     }
 
     private UsersRecord saveUser(final UserDto user) {
-
         final UsersRecord userRecord = dsl.transactionResult(configuration -> {
             DSLContext ctx = DSL.using(configuration);
             if (ctx.fetchExists(ctx.selectOne().from(USERS).where(USERS.EMAIL.eq(user.email())))) {
@@ -100,9 +104,27 @@ public final class PostgreSqlService extends Service {
     }
 
     @Override
-    public void configure(final TypeMapI<?> configs, final TypeMapI<?> merged) {
-        this.dbUrl = merged.asStringOpt(CONFIG_DB_URL).orElseGet(() -> localDbUrl);
-        this.dbUser = merged.asStringOpt(CONFIG_DB_USER).orElseGet(() -> localDbUser);
-        this.dbPass = merged.asStringOpt(CONFIG_DB_PASS).orElseGet(() -> localDbPass);
+    public void configure(final TypeMapI<?> changes, final TypeMapI<?> merged) {
+        this.dbName = changes.asStringOpt(CONFIG_DB_NAME).orElse(merged.asString(CONFIG_DB_NAME));
+        this.dbUser = changes.asStringOpt(CONFIG_DB_USER).orElse(merged.asString(CONFIG_DB_USER));
+
+        // On the config change event, this merged has values from application.properties and not application-<profile>.properties
+        // even after doing NanoUtils.readProfiles() and using the context returned.
+        this.dbPass = changes.asStringOpt(CONFIG_DB_PASS).orElse(merged.asString(CONFIG_DB_PASS));
+        this.dbPort = changes.asIntOpt(CONFIG_DB_PORT).orElse(merged.asInt(CONFIG_DB_PORT));
+        this.dbHost = changes.asStringOpt(CONFIG_DB_HOST).orElse(merged.asString(CONFIG_DB_HOST));
+        this.dbOpts = changes.asStringOpt(CONFIG_DB_OPTIONS).orElse(merged.asString(CONFIG_DB_OPTIONS));
+        if (changes.containsKey(CONFIG_DB_PORT)) {
+            createOrUpdateDs(this.dbHost, changes.asInt(CONFIG_DB_PORT), this.dbName, this.dbUser, this.dbPass, this.dbOpts);
+        }
+    }
+
+    private void createOrUpdateDs(String host, Integer port, String name, String user, String pass, String options) {
+        DataSourceConfig newConfig = new DataSourceConfig(host, port, name, user, pass, options);
+        if (null == this.dsConfig || !this.dsConfig.equals(newConfig)) {
+            this.ds = DataSourceFactory.create(newConfig);
+            this.dsl = JooqFactory.create(ds);
+            this.dsConfig = newConfig;
+        }
     }
 }
